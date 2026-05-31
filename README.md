@@ -21,10 +21,11 @@
 ## 目錄結構
 
 ```
-pi/                   # 樹莓派端（直接放 Pi 上跑）
-  ├── collect.py      # 資料收集模式（按鍵分類儲存）
-  ├── inspect.py      # 即時推論模式
-  ├── camera_test.py   # 相機測試
+pi/                   # 樹莓派端
+  ├── gui.py          # Tkinter 整合視窗（推荐使用）
+  ├── collect.py      # 純指令列資料收集
+  ├── inspect.py      # 純指令列推論模式
+  ├── camera_test.py  # 相機測試
   └── requirements.txt
 
 train/                # PC / Google Colab 訓練用
@@ -41,27 +42,15 @@ docs/
   └── model_training.md   # 模型訓練說明
 ```
 
-## 資料夾結構（蒐集足夠資料後）
+## 咖啡豆瑕疵類別
 
-```
-data/
-  ├── train/
-  │   ├── good/       # 完好豆影像
-  │   └── defect/      # 瑕疵豆影像
-  └── val/
-      ├── good/
-      └── defect/
-```
-
-## 咖啡豆瑕疵類別（初期）
-
-| 類別 | 說明 |
-|------|------|
-| `good` | 完好豆 |
-| `broken` | 破裂豆 |
-| `black` | 黑色豆（過度發酵） |
-| `moldy` | 黴菌豆 |
-| `stink` | 蟲蛀/異味豆 |
+| 類別 | 按鍵 | 說明 |
+|------|------|------|
+| `good` | G | 完好豆 |
+| `broken` | B | 破裂豆 |
+| `black` | K | 黑色豆（過度發酵） |
+| `moldy` | M | 黴菌豆 |
+| `stink` | S | 蟲蛀/異味豆 |
 
 ## 快速開始
 
@@ -72,25 +61,46 @@ pip install -r pi/requirements.txt
 python pi/camera_test.py   # 先確認相機正常
 ```
 
-### 2. 資料收集
+### 2. 啟動 GUI（推薦）
 
 ```bash
-python pi/collect.py
-# 按 G → 存到 data/good/
-# 按 D → 存到 data/defect/
-# 按 Q → 結束
+python pi/gui.py
 ```
 
-### 3. 訓練模型
+GUI 包含：
+- 左側：即時相機預覽 + 模式切換
+- 右側：已收集統計、模型狀態、推論結果、操作日誌
+- 按 `G/B/K/M/S` 快速分類儲存
+- 按 `Q` 結束
 
-在 Google Colab 或本地 GPU PC 開啟 `train/train.ipynb`。
+### 3. 單獨使用指令列模式
 
-### 4. 部署推論
+```bash
+# 資料收集
+python pi/collect.py
+# 按 G/B/K/M/S 分類，按 Q 結束
 
-將訓練好的 `best.pt` 放到 `pi/models/`，然後：
+# 即時推論（需先有模型）
+python pi/inspect.py --model models/best.pt
+```
+
+### 4. 訓練模型
+
+在 Google Colab 或本地 GPU PC 開啟 `train/train.ipynb`，
+或使用本地訓練：
+
+```bash
+python train/train_local.py --data /path/to/data --epochs 50
+```
+
+### 5. 部署推論
+
+將 `best.pt` 放到 `pi/models/`，然後：
 
 ```bash
 python pi/inspect.py --model models/best.pt
+# 或 GUI 模式
+python pi/gui.py --model models/best.pt
 ```
 
 ## 技術規格
@@ -98,8 +108,19 @@ python pi/inspect.py --model models/best.pt
 | 項目 | 數值 |
 |------|------|
 | 推論延遲 | ~200ms（YOLOv8n） |
-| 準確率 | 取決於資料品質與數量 |
-| 建議最低資料量 | 每類 50 張 |
+| 建議最低資料量 | 每類 50 張（建議 100+） |
+| 建議樹莓派型號 | Raspberry Pi 4（2GB+） |
+
+## 自主訓練流程
+
+```
+收集新樣本（Pi GUI）→ Commit 到 GitHub → PC Pull → 訓練 → Deploy 回 Pi
+```
+
+1. **收集：** `python pi/gui.py` 按 G/B/K/M/S 分類儲存
+2. **同步：** `git add data/ && git commit && git push`
+3. **訓練：** Colab 或本地 GPU 訓練
+4. **部署：** `deploy/deploy_to_pi.sh` 或手動複製
 
 ---
 
